@@ -1,3 +1,9 @@
+## v1.4.3 (2026-10-26)
+
+### Miscellaneous Chores
+
+* other(deps-dev): Update uv-build requirement in /tide (#3) (84d15f26923e481c8fc9f21816d4c54c1cea817d)
+
 ## v1.4.2 (2026-10-26)
 
 ### Miscellaneous Chores
