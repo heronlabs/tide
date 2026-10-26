@@ -1,0 +1,48 @@
+# FlareSolverr (network tide only, no published port)
+#
+# The proxy Prowlarr uses for the indexers behind Cloudflare: it opens the page
+# of an indexer in a headless Chromium, passes the challenge and answers the page.
+# Passing a site's challenge can breach that site's terms of use: use it only
+# with indexers whose terms allow automated access and that serve content you
+# have the right to download.
+# Only Prowlarr calls it, at http://flaresolverr:8191, for the indexers tagged
+# flaresolverr, so no port is published.
+# Keeps no state, so it has no volume. The image runs as flaresolverr (1000:1000).
+# Joins the external network tide (`docker network create tide`), so prowlarr
+# reaches it by name.
+#
+# The CPU/memory caps keep it, and its headless Chromium above all, from
+# starving the other workloads of the host.
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: always
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TZ: ${TZ:-America/Sao_Paulo}
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${FLARESOLVERR_CPUS:-1}"
+          memory: ${FLARESOLVERR_MEMORY:-1G}
+        reservations:
+          memory: 128M
+
+networks:
+  tide:
+    external: true

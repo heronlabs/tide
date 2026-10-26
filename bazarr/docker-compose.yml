@@ -1,0 +1,57 @@
+# Bazarr (LAN only)
+#
+# Web UI: http://<host>:6767 (first access asks for nothing: set Forms
+# authentication under Settings → General).
+# Subtitles: follows the movies of Radarr and the episodes of Sonarr and downloads
+# the missing Portuguese (Brazil) subtitles next to each video, as
+# `Title (Year).pt-BR.srt`, which Jellyfin lists in the player.
+# ${MEDIA_DIR} is mounted whole at /data, the same path Radarr and Sonarr see,
+# so their paths need no mapping.
+# Config lives in the named volume bazarr-config.
+# Joins the external network tide (`docker network create tide`), so it reaches
+# radarr and sonarr by name.
+#
+# The CPU/memory caps keep it from starving the other workloads
+# of the host.
+
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: always
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "6767:6767"
+    volumes:
+      - bazarr-config:/config
+      - ${MEDIA_DIR:?set MEDIA_DIR in .env}:/data
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:6767/api/system/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${BAZARR_CPUS:-1}"
+          memory: ${BAZARR_MEMORY:-1G}
+        reservations:
+          memory: 128M
+
+volumes:
+  bazarr-config:
+
+networks:
+  tide:
+    external: true

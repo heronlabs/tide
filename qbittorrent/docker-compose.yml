@@ -1,0 +1,52 @@
+# qBittorrent (LAN only)
+#
+# Web UI: http://<host>:8080 (first start prints a temporary admin
+# password in the logs: `docker logs qbittorrent`; change it right away).
+# Downloads: ${MEDIA_DIR} is mounted whole at /data, with the save path
+# /data/downloads, the same paths Radarr and Sonarr see, so their import into
+# /data/movies and /data/shows is an instant rename.
+# Config lives in the named volume qbittorrent-config.
+#
+# 6881 tcp/udp is the peer port. It works on the LAN without any router
+# change; forwarding it on the router is optional and only speeds up swarms.
+# No VPN: only download legitimate content (Linux ISOs, public-domain and
+# Creative Commons media).
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: always
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Sao_Paulo}
+      WEBUI_PORT: ${WEBUI_PORT:-8080}
+    ports:
+      - "${WEBUI_PORT:-8080}:${WEBUI_PORT:-8080}"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - qbittorrent-config:/config
+      - ${MEDIA_DIR:?set MEDIA_DIR in .env}:/data
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "${QBIT_CPUS:-2}"
+          memory: ${QBIT_MEMORY:-2G}
+        reservations:
+          memory: 256M
+
+volumes:
+  qbittorrent-config:
+
+networks:
+  tide:
+    external: true

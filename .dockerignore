@@ -1,0 +1,12 @@
+.git
+.worktrees/
+**/.env
+**/.venv/
+**/dist/
+**/.coverage
+**/__pycache__/
+**/.pytest_cache/
+**/mutants/
+.supera/
+.superpowers/
+.serena/

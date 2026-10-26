@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+git diff --cached --quiet -- 'tide/*.py' tide/pyproject.toml tide/uv.lock && exit 0
+
+make --no-print-directory -C tide lint test

@@ -1,0 +1,25 @@
+# Local config and secrets (copy .env.example to .env in each service)
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+dist/
+.venv/
+mutants/
+
+# Logs
+*.log
+
+# Serena (local MCP project data)
+.serena/
+
+# Agent worktrees and plans (supera, superpowers)
+.worktrees/
+.supera/
+.superpowers/
+
+# macOS
+.DS_Store

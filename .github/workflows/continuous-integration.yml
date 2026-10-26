@@ -1,0 +1,94 @@
+name: 'Continuous Integration'
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 'Build'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make build
+
+  lint:
+    name: 'Lint'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make lint
+
+  audit:
+    name: 'Audit'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make audit
+
+  unit:
+    needs: build
+    name: 'Unit Tests'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make test:coverage
+
+  integration:
+    needs: unit
+    name: 'Integration Tests'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make test:integration
+
+  mutation:
+    needs: unit
+    name: 'Mutation Tests'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - run: make test:mutation
+
+      - name: Mutation summary
+        if: always()
+        working-directory: tide
+        run: |
+          stats=mutants/mutmut-cicd-stats.json
+          {
+            echo "### Mutation testing"
+            echo '```'
+            if [ -s "$stats" ]; then
+              jq -r '"Killed: \(.killed), Survived: \(.survived), No tests: \(.no_tests), Total: \(.total)"' "$stats"
+              uv run mutmut results
+            else
+              echo "mutation stats not found"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

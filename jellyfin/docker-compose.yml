@@ -1,0 +1,66 @@
+# Jellyfin media server (LAN only)
+#
+# Web UI: http://<host>:8096 (first access runs the setup wizard).
+# Library: ${MEDIA_DIR}/{movies,shows,music}, mounted read-write at /media.
+# Config and cache live in named volumes, so `down` keeps them and
+# `down -v` deletes them (watch history, users, metadata).
+#
+# Ports published on the LAN:
+#   8096/tcp  web UI and API
+#   7359/udp  client auto-discovery
+#   1900/udp  DLNA discovery
+#
+# Joins the external network tide (`docker network create tide`), so Radarr,
+# Sonarr and Seerr reach it as http://jellyfin:8096.
+#
+# Transcoding runs on the CPU for now. The RTX 3060 is the only GPU visible
+# to the OS (the Ryzen iGPU is disabled), so hardware acceleration means
+# NVENC, which needs the nvidia-container-toolkit on the host.
+#
+# The CPU/memory caps keep Jellyfin from starving the other
+# workloads of the host.
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: always
+    user: "1000:1000"
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "8096:8096"
+      - "7359:7359/udp"
+      - "1900:1900/udp"
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ${MEDIA_DIR:?set MEDIA_DIR in .env}:/media
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${JELLYFIN_CPUS:-4}"
+          memory: ${JELLYFIN_MEMORY:-3G}
+        reservations:
+          memory: 512M
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:
+
+networks:
+  tide:
+    external: true

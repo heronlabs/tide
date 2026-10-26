@@ -1,0 +1,52 @@
+# Prowlarr (LAN only)
+#
+# Web UI: http://<host>:9696 (first access asks for an authentication method).
+# Manages the indexers and syncs them to Radarr and Sonarr (Settings → Apps);
+# it only searches and never talks to qBittorrent.
+# Config lives in the named volume prowlarr-config.
+# Joins the external network tide (`docker network create tide`), so it reaches
+# radarr and sonarr by name.
+#
+# The CPU/memory caps keep it from starving the other workloads
+# of the host.
+
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: always
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "9696:9696"
+    volumes:
+      - prowlarr-config:/config
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9696/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${PROWLARR_CPUS:-1}"
+          memory: ${PROWLARR_MEMORY:-512M}
+        reservations:
+          memory: 128M
+
+volumes:
+  prowlarr-config:
+
+networks:
+  tide:
+    external: true

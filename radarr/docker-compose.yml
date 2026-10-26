@@ -1,0 +1,54 @@
+# Radarr (LAN only)
+#
+# Web UI: http://<host>:7878 (first access asks for an authentication method).
+# Movies: searches through Prowlarr, sends the release to qBittorrent with the
+# category radarr, then renames and moves it into /data/movies and notifies Jellyfin.
+# ${MEDIA_DIR} is mounted whole at /data, the same path qBittorrent sees, so the
+# import is an instant rename (a move across two bind mounts would be a copy).
+# Config lives in the named volume radarr-config.
+# Joins the external network tide (`docker network create tide`).
+#
+# The CPU/memory caps keep it from starving the other workloads
+# of the host.
+
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: always
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "7878:7878"
+    volumes:
+      - radarr-config:/config
+      - ${MEDIA_DIR:?set MEDIA_DIR in .env}:/data
+    networks:
+      - tide
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7878/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${RADARR_CPUS:-1}"
+          memory: ${RADARR_MEMORY:-1G}
+        reservations:
+          memory: 128M
+
+volumes:
+  radarr-config:
+
+networks:
+  tide:
+    external: true

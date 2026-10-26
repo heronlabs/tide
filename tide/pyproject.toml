@@ -1,0 +1,52 @@
+[project]
+name = "tide"
+version = "0.1.0"
+description = "Wires the tide media server services together through their APIs"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+tide = "tide.main:run"
+
+[build-system]
+requires = ["uv_build>=0.13.3,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mutmut>=3.8.0",
+    "pip-audit>=2.10.1",
+    "pyright>=1.1.400",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.0",
+]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+pythonpath = ["tests"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["tide"]
+branch = true
+omit = ["*/tide/main.py"]
+
+[tool.mutmut]
+source_paths = ["src/"]
+# The integration tests run the installed tide, which never imports the mutants.
+pytest_add_cli_args_test_selection = ["tests/unit"]
+do_not_mutate = ["*/main.py"]
+also_copy = ["tests/"]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["tests"]
+typeCheckingMode = "standard"
