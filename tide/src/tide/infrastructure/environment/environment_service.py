@@ -15,6 +15,7 @@ class EnvironmentService:
     jellyfin_api_key: str
     quality_profile: str
     lan_host: str
+    qbit_url: str
     radarr_url: str
     sonarr_url: str
     prowlarr_url: str
@@ -43,6 +44,7 @@ class EnvironmentService:
                 jellyfin_api_key=required("TIDE_JELLYFIN_API_KEY"),
                 quality_profile=environ.get("TIDE_QUALITY_PROFILE", "HD-1080p"),
                 lan_host=required("TIDE_LAN_HOST"),
+                qbit_url=environ.get("TIDE_QBIT_URL", "http://localhost:8080"),
                 radarr_url=environ.get("TIDE_RADARR_URL", "http://localhost:7878"),
                 sonarr_url=environ.get("TIDE_SONARR_URL", "http://localhost:8989"),
                 prowlarr_url=environ.get("TIDE_PROWLARR_URL", "http://localhost:9696"),

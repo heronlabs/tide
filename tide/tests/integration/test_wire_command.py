@@ -13,12 +13,15 @@ def tide_wire(environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run([command, "wire"], env=environment, capture_output=True, text=True, timeout=60, check=False)
 
 
-# The variables of a wire against these six URLs.
-def variables(radarr: str, sonarr: str, prowlarr: str, seerr: str, bazarr: str, jellyfin: str) -> dict[str, str]:
+# The variables of a wire against these seven URLs.
+def variables(
+    qbittorrent: str, radarr: str, sonarr: str, prowlarr: str, seerr: str, bazarr: str, jellyfin: str
+) -> dict[str, str]:
     return {
         "TIDE_QBIT_PASSWORD": "qbit-password",
         "TIDE_JELLYFIN_API_KEY": "jellyfin-key",
         "TIDE_LAN_HOST": "192.168.1.10",
+        "TIDE_QBIT_URL": qbittorrent,
         "TIDE_RADARR_URL": radarr,
         "TIDE_SONARR_URL": sonarr,
         "TIDE_PROWLARR_URL": prowlarr,
@@ -31,6 +34,12 @@ def variables(radarr: str, sonarr: str, prowlarr: str, seerr: str, bazarr: str, 
         "TIDE_SEERR_API_KEY": "seerr-key",
         "TIDE_BAZARR_API_KEY": "bazarr-key",
     }
+
+
+# Answers like a qBittorrent 5.2 that takes the login, with an empty answer, and sets the session cookie.
+def answer_like_qbittorrent(server: FakeServer) -> None:
+    server.routes[("POST", "/api/v2/auth/login")] = Response(status=204, headers={"Set-Cookie": "SID=session; path=/"})
+    server.routes[("POST", "/api/v2/app/setPreferences")] = Response()
 
 
 # Answers like a fresh Radarr or Sonarr, whose qBittorrent category field is category_field and whose id of
@@ -115,7 +124,8 @@ def answer_like_jellyfin(server: FakeServer) -> None:
 class TestGivenExecute:
     def test_should_wire_every_service(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -123,13 +133,34 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        result = tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        result = tide_wire(
+            variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url)
+        )
 
-        assert result.returncode == 0 and result.stdout.endswith("wire: 24 done, 0 failed\n")
+        assert result.returncode == 0 and result.stdout.endswith("wire: 25 done, 0 failed\n")
+
+    def test_should_leave_the_slow_torrents_out_of_the_queue_of_qbittorrent(self, fake_servers):
+        radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
+        answer_like_an_arr(radarr, "movieCategory", 30)
+        answer_like_an_arr(sonarr, "tvCategory", 33)
+        answer_like_prowlarr(prowlarr)
+        answer_like_seerr(seerr)
+        answer_like_bazarr(bazarr)
+        answer_like_jellyfin(jellyfin)
+
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+
+        assert [
+            (request.headers["Cookie"], request.body)
+            for request in qbittorrent.requests_to("/api/v2/app/setPreferences")
+        ] == [("SID=session", "json=%7B%22dont_count_slow_torrents%22%3A+true%7D")]
 
     def test_should_give_qbittorrent_the_category_of_sonarr(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -137,7 +168,7 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert json.loads(sonarr.requests_to("/api/v3/downloadclient")[-1].body)["fields"] == [
             {"name": "tvCategory", "value": "sonarr"}
@@ -145,7 +176,8 @@ class TestGivenExecute:
 
     def test_should_give_sonarr_the_custom_format_of_its_id_of_portuguese(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -153,7 +185,7 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert json.loads(sonarr.requests_to("/api/v3/customformat")[-1].body)["specifications"][0]["fields"] == [
             {"name": "value", "value": 33},
@@ -162,7 +194,8 @@ class TestGivenExecute:
 
     def test_should_replace_the_server_seerr_has_without_sending_its_id(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -172,13 +205,14 @@ class TestGivenExecute:
         seerr.routes[("GET", "/api/v1/settings/radarr")] = Response(body='[{"id": 0, "name": "Radarr"}]')
         seerr.routes[("PUT", "/api/v1/settings/radarr/0")] = Response(body="{}")
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert "id" not in json.loads(seerr.requests_to("/api/v1/settings/radarr/0")[0].body)
 
     def test_should_have_bazarr_follow_sonarr_with_its_key(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -186,20 +220,23 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert "settings-sonarr-apikey=sonarr-key" in bazarr.requests_to("/api/system/settings")[-1].body
 
     def test_should_have_bazarr_enable_opensubtitles_with_its_login(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
         answer_like_seerr(seerr)
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
-        environment = variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url)
+        environment = variables(
+            qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url
+        )
         environment["TIDE_OPENSUBTITLES_USERNAME"] = "lucas"
         environment["TIDE_OPENSUBTITLES_PASSWORD"] = "opensubtitles-password"
 
@@ -216,7 +253,8 @@ class TestGivenExecute:
 
     def test_should_have_bazarr_enable_no_provider_without_the_opensubtitles_login(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -224,7 +262,7 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert [
             request.body
@@ -234,7 +272,8 @@ class TestGivenExecute:
 
     def test_should_send_jellyfin_its_key_as_a_media_browser_token(self, fake_servers):
         radarr, sonarr, prowlarr, seerr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        bazarr, jellyfin = fake_servers(), fake_servers()
+        bazarr, jellyfin, qbittorrent = fake_servers(), fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(radarr, "movieCategory", 30)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
@@ -242,7 +281,7 @@ class TestGivenExecute:
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        tide_wire(variables(radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        tide_wire(variables(qbittorrent.url, radarr.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
 
         assert jellyfin.requests[0].headers["Authorization"] == 'MediaBrowser Token="jellyfin-key"'
 
@@ -250,20 +289,23 @@ class TestGivenExecute:
         down = fake_servers()
         down.stop()
         sonarr, prowlarr, seerr, bazarr = fake_servers(), fake_servers(), fake_servers(), fake_servers()
-        jellyfin = fake_servers()
+        jellyfin, qbittorrent = fake_servers(), fake_servers()
+        answer_like_qbittorrent(qbittorrent)
         answer_like_an_arr(sonarr, "tvCategory", 33)
         answer_like_prowlarr(prowlarr)
         answer_like_seerr(seerr)
         answer_like_bazarr(bazarr)
         answer_like_jellyfin(jellyfin)
 
-        result = tide_wire(variables(down.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url))
+        result = tide_wire(
+            variables(qbittorrent.url, down.url, sonarr.url, prowlarr.url, seerr.url, bazarr.url, jellyfin.url)
+        )
 
-        assert result.returncode == 1 and result.stdout.endswith("wire: 18 done, 6 failed\n")
+        assert result.returncode == 1 and result.stdout.endswith("wire: 19 done, 6 failed\n")
 
     def test_should_exit_with_code_two_without_the_qbittorrent_password(self, fake_servers):
         server = fake_servers()
-        environment = variables(server.url, server.url, server.url, server.url, server.url, server.url)
+        environment = variables(server.url, server.url, server.url, server.url, server.url, server.url, server.url)
         del environment["TIDE_QBIT_PASSWORD"]
 
         result = tide_wire(environment)
