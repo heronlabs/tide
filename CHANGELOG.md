@@ -1,3 +1,9 @@
+## v1.4.4 (2026-11-02)
+
+### Miscellaneous Chores
+
+* other(deps-dev): Bump ruff from 0.17.2 to 0.17.3 in /tide (#4) (f0418c40241a73d2155c73c71868c337d06d57fa)
+
 ## v1.4.3 (2026-10-26)
 
 ### Miscellaneous Chores
