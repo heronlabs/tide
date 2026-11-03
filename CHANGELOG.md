@@ -1,3 +1,9 @@
+## v1.4.6 (2026-11-03)
+
+### Miscellaneous Chores
+
+* other(deps): Bump astral-sh/setup-uv (#6) (a9031c7931a6de53b5b5f6fec8b1be77485a9dc3)
+
 ## v1.4.5 (2026-11-02)
 
 ### Miscellaneous Chores
