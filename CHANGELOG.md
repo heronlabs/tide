@@ -1,3 +1,9 @@
+## v1.4.8 (2026-11-03)
+
+### Miscellaneous Chores
+
+* other(deps-dev): Bump pytest from 9.1.1 to 9.2.0 in /tide (#7) (329606148312cf843f887d6520bc019f5fad260e)
+
 ## v1.4.7 (2026-11-03)
 
 ### Miscellaneous Chores
