@@ -1,3 +1,9 @@
+## v1.4.7 (2026-11-03)
+
+### Miscellaneous Chores
+
+* other(deps-dev): Bump mutmut from 3.8.0 to 3.8.1 in /tide (#8) (23a767ef417578c8b29e120bb1b5edb73be23082)
+
 ## v1.4.6 (2026-11-03)
 
 ### Miscellaneous Chores
