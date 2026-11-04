@@ -1,3 +1,9 @@
+## v1.5.0 (2026-11-04)
+
+### Features
+
+* feat: leave slow torrents out of qBittorrent's queue in tide wire (#9) (390532f68471622c9ded26941efe798d3824848f)
+
 ## v1.4.8 (2026-11-03)
 
 ### Miscellaneous Chores
