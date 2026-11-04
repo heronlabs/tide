@@ -1,11 +1,12 @@
 # tide — wires the media server services together
 
-Python (stdlib only), run on the host by hand. `tide wire` does through the APIs what the READMEs of `../radarr`, `../sonarr`, `../prowlarr`, `../seerr`, `../bazarr` and `../jellyfin` (its library `Discover`) describe in the web UIs, so a new host, or a host whose volumes were deleted, is wired with one command. Each step replaces what an earlier run created, matched by name, so it is safe to run again, for example after changing a value in `.env`.
+Python (stdlib only), run on the host by hand. `tide wire` does through the APIs what the READMEs of `../qbittorrent` (its queue), `../radarr`, `../sonarr`, `../prowlarr`, `../seerr`, `../bazarr` and `../jellyfin` (its library `Discover`) describe in the web UIs, so a new host, or a host whose volumes were deleted, is wired with one command. Each step replaces what an earlier run created, matched by name, so it is safe to run again, for example after changing a value in `.env`.
 
 ## What it does
 
 | Service | Step | Values used |
 |---|---|---|
+| qBittorrent | Slow torrents left out of the limit of active downloads (**Do not count slow torrents in these limits**), so a torrent nobody seeds does not hold its place in the queue while the others wait; qBittorrent 5.2 answers a wrong login with `HTTP 401`, the versions before it with `Fails.` | `TIDE_QBIT_USERNAME`, `TIDE_QBIT_PASSWORD` |
 | Radarr | Root folder `/data/movies` | |
 | | Naming: rename on, folder and file `{Movie Title} ({Release Year})` | |
 | | Custom format `Portuguese (Brazil)` (the language `Portuguese (Brazil)`, required, its id read from the app's `/api/v3/language`, since Radarr and Sonarr number their languages differently) scored `100` in the quality profile, so a release in Portuguese (Brazil) wins over another of the same quality | `TIDE_QUALITY_PROFILE` |
@@ -23,7 +24,7 @@ Python (stdlib only), run on the host by hand. `tide wire` does through the APIs
 | | Provider OpenSubtitles.com, with its login, added to the ones enabled; without the login, no provider | `TIDE_OPENSUBTITLES_USERNAME`, `TIDE_OPENSUBTITLES_PASSWORD` |
 | | Radarr at `radarr:7878` and Sonarr at `sonarr:8989`; Bazarr sees their files at the same `/data`, so no path is mapped | the Radarr and Sonarr keys |
 
-Every address between services is the container name on the network `tide`. tide itself reaches them from the host on `localhost`, at the ports the compose files publish (`TIDE_*_URL` changes that).
+Every address between services is the container name on the network `tide`. tide itself reaches them from the host on `localhost`, at the ports the compose files publish (`TIDE_*_URL` changes that). qBittorrent has no API key: tide signs in with its Web UI login and sends the session cookie it gets on the next call.
 
 The API keys of Radarr, Sonarr and Prowlarr come from `/config/config.xml` in each container, Seerr's from `/app/config/settings.json` and Bazarr's from `/config/config/config.yaml`, through `docker exec`, so they are never copied by hand; `TIDE_*_API_KEY` gives one instead. Jellyfin's is `TIDE_JELLYFIN_API_KEY`, which tide sends as `Authorization: MediaBrowser Token="<key>"`, the only form Jellyfin takes.
 
@@ -32,7 +33,7 @@ A step that fails, such as a service that is down or a wrong qBittorrent passwor
 - the **logins** of the web UIs and **Seerr's Jellyfin sign-in**, which need a person;
 - the **indexers**: pick them in Prowlarr, which syncs them to Radarr and Sonarr;
 - the **Library Import**, in Radarr (Movies → Library Import, `/data/movies`) and Sonarr (Series → Library Import, `/data/shows`), to adopt what is already in `~/Media` once;
-- **qBittorrent's own settings** (save paths, the ratio action), in `../qbittorrent/README.md`;
+- **qBittorrent's other settings** (save paths, the ratio action), in `../qbittorrent/README.md`;
 - **installing JellyBridge**, which restarts Jellyfin, and **what it shows**, in `../jellyfin/README.md`.
 
 ## Run
@@ -46,10 +47,11 @@ make wire                        # from the root of the clone
 ```
 
 ```
+done   qbittorrent: queue
 done   radarr: root folder
 ...
 done   bazarr: sonarr
-wire: 24 done, 0 failed
+wire: 25 done, 0 failed
 ```
 
 It exits with `1` when a step failed and `2` when a required variable is missing.
@@ -73,8 +75,8 @@ It exits with `1` when a step failed and `2` when a required variable is missing
 - `src/tide/main.py`: builds the services and injects them into the commands (`tide wire` runs `run()`).
 - `src/tide/application/cli/`: commands, one per file. `WireCommand` runs the wire and turns its report into output and the exit code.
 - `src/tide/core/domain/`: the data that crosses the layers, one class per file: `WireReport` and `Failure`.
-- `src/tide/core/interfaces/`: one `Protocol` per file (`MediaManager`, `IndexerManager`, `RequestManager`, `SubtitleManager`, `MediaServer`, `Wire`). pyright checks that each service matches its interface where `main.py` injects it.
+- `src/tide/core/interfaces/`: one `Protocol` per file (`DownloadClient`, `MediaManager`, `IndexerManager`, `RequestManager`, `SubtitleManager`, `MediaServer`, `Wire`). pyright checks that each service matches its interface where `main.py` injects it.
 - `src/tide/core/services/`: `WireService`, which holds the steps and their order and goes on after a step that failed.
-- `src/tide/infrastructure/`: `http/` (`ApiClient`, the JSON calls and the form posts, and the helpers for the *arr schemas), `arr/` (Radarr and Sonarr, which share their API), `prowlarr/`, `seerr/`, `bazarr/`, `jellyfin/`, `docker/` (the API keys) and `environment/`.
+- `src/tide/infrastructure/`: `http/` (`ApiClient`, the JSON calls and the form posts, `SessionClient`, the form posts signed in with a session cookie, and the helpers for the *arr schemas), `qbittorrent/`, `arr/` (Radarr and Sonarr, which share their API), `prowlarr/`, `seerr/`, `bazarr/`, `jellyfin/`, `docker/` (the API keys) and `environment/`.
 - `tests/unit/`: one test file per service or command, in the same folders as `src/tide/`. A class per method (`TestGivenRun`) and one `test_should_...` per behavior, with one assertion each. Fakes live in the test file that uses them; the fake HTTP server lives in `tests/mocks/`.
 - `tests/integration/`: one test file per command, running the real `tide wire` as a subprocess against a `FakeServer` per service, with only the `TIDE_*` variables each test sets.

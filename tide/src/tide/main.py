@@ -11,8 +11,10 @@ from tide.infrastructure.bazarr.bazarr_service import BazarrService
 from tide.infrastructure.docker.key_service import KeyService
 from tide.infrastructure.environment.environment_service import EnvironmentService
 from tide.infrastructure.http.api_client import ApiClient
+from tide.infrastructure.http.session_client import SessionClient
 from tide.infrastructure.jellyfin.jellyfin_service import JellyfinService
 from tide.infrastructure.prowlarr.prowlarr_service import ProwlarrService
+from tide.infrastructure.qbittorrent.qbittorrent_service import QbittorrentService
 from tide.infrastructure.seerr.seerr_service import SeerrService
 
 TIMEOUT = 30
@@ -114,8 +116,19 @@ def build_wire_command(environment: EnvironmentService) -> WireCommand:
         ),
         key_of=keys.key,
     )
+    qbittorrent = QbittorrentService(
+        SessionClient(f"{environment.qbit_url}/api/v2", TIMEOUT),
+        username=environment.qbit_username,
+        password=environment.qbit_password,
+    )
     wire = WireService(
-        radarr=radarr, sonarr=sonarr, indexers=prowlarr, requests=seerr, subtitles=bazarr, media_server=jellyfin
+        radarr=radarr,
+        sonarr=sonarr,
+        indexers=prowlarr,
+        requests=seerr,
+        subtitles=bazarr,
+        media_server=jellyfin,
+        downloads=qbittorrent,
     )
     return WireCommand(wire=wire)
 
@@ -123,7 +136,9 @@ def build_wire_command(environment: EnvironmentService) -> WireCommand:
 def run() -> int:
     parser = argparse.ArgumentParser(prog="tide", description="Wires the tide media server services together.")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("wire", help="wire Radarr, Sonarr, Prowlarr, Seerr, Bazarr and Jellyfin through their APIs")
+    commands.add_parser(
+        "wire", help="wire qBittorrent, Radarr, Sonarr, Prowlarr, Seerr, Bazarr and Jellyfin through their APIs"
+    )
     parser.parse_args()
     return build_wire_command(EnvironmentService.from_env()).execute()
 

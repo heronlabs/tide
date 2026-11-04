@@ -38,6 +38,10 @@ Radarr and Sonarr add the torrents here, each with its category (`radarr`, `sona
 - **Downloads → Keep incomplete torrents in:** `/data/downloads/incomplete`
 - **BitTorrent → Seeding Limits → When ratio reaches:** `0`, then **Stop torrent** (**Pause torrent** in older versions), so nothing seeds after the download. Do not pick **Remove torrent**: Radarr and Sonarr must still see the finished torrent to import it, and they remove it themselves afterwards (**Remove Completed**).
 
+`make wire` sets one more (Tools → Options → BitTorrent → Torrent Queueing):
+
+- **Do not count slow torrents in these limits:** on. Only `Maximum active downloads` torrents (3) download at a time, and one nobody seeds would otherwise hold its place forever while the others wait in the queue. A torrent below `2` KiB/s for `60` seconds no longer counts.
+
 Torrents added by hand, without a category, stay in `/data/downloads`: move them into the library by hand, named as in `../jellyfin/README.md`.
 
 ## Notes

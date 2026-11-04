@@ -73,15 +73,27 @@ class FakeMediaServer:
         pass
 
 
+class FakeDownloads:
+    def skip_slow_torrents(self) -> None:
+        pass
+
+
 class TestGivenRun:
     def test_should_do_every_step_in_order(self):
         wire = WireService(
-            FakeMediaManager(), FakeMediaManager(), FakeIndexers(), FakeRequests(), FakeSubtitles(), FakeMediaServer()
+            FakeMediaManager(),
+            FakeMediaManager(),
+            FakeIndexers(),
+            FakeRequests(),
+            FakeSubtitles(),
+            FakeMediaServer(),
+            FakeDownloads(),
         )
 
         report = wire.run()
 
         assert report.done == [
+            "qbittorrent: queue",
             "radarr: root folder",
             "radarr: naming",
             "radarr: Portuguese (Brazil)",
@@ -112,7 +124,13 @@ class TestGivenRun:
         indexers = FakeIndexers()
 
         WireService(
-            FakeMediaManager(), FakeMediaManager(), indexers, FakeRequests(), FakeSubtitles(), FakeMediaServer()
+            FakeMediaManager(),
+            FakeMediaManager(),
+            indexers,
+            FakeRequests(),
+            FakeSubtitles(),
+            FakeMediaServer(),
+            FakeDownloads(),
         ).run()
 
         assert indexers.synced == ["radarr", "sonarr"]
@@ -121,7 +139,13 @@ class TestGivenRun:
         subtitles = FakeSubtitles()
 
         WireService(
-            FakeMediaManager(), FakeMediaManager(), FakeIndexers(), FakeRequests(), subtitles, FakeMediaServer()
+            FakeMediaManager(),
+            FakeMediaManager(),
+            FakeIndexers(),
+            FakeRequests(),
+            subtitles,
+            FakeMediaServer(),
+            FakeDownloads(),
         ).run()
 
         assert subtitles.followed == ["radarr", "sonarr"]
@@ -134,6 +158,7 @@ class TestGivenRun:
             FakeRequests(),
             FakeSubtitles(),
             FakeMediaServer(),
+            FakeDownloads(),
         )
 
         report = wire.run()
@@ -148,8 +173,9 @@ class TestGivenRun:
             FakeRequests(),
             FakeSubtitles(),
             FakeMediaServer(),
+            FakeDownloads(),
         )
 
         report = wire.run()
 
-        assert report.done[:2] == ["radarr: naming", "radarr: Portuguese (Brazil)"]
+        assert report.done[1:3] == ["radarr: naming", "radarr: Portuguese (Brazil)"]

@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from tide.core.domain.failure import Failure
 from tide.core.domain.wire_report import WireReport
+from tide.core.interfaces.download_client import DownloadClient
 from tide.core.interfaces.indexer_manager import IndexerManager
 from tide.core.interfaces.media_manager import MediaManager
 from tide.core.interfaces.media_server import MediaServer
@@ -9,8 +10,8 @@ from tide.core.interfaces.request_manager import RequestManager
 from tide.core.interfaces.subtitle_manager import SubtitleManager
 
 
-# Wire Radarr and Sonarr to the library, qBittorrent and Jellyfin, then Prowlarr, Seerr and Bazarr to them, and
-# Jellyfin's library Discover to Seerr.
+# Set qBittorrent's queue up, wire Radarr and Sonarr to the library, qBittorrent and Jellyfin, then Prowlarr, Seerr
+# and Bazarr to them, and Jellyfin's library Discover to Seerr.
 # A step that fails is reported and the next one still runs, so one service down does not hide the others.
 class WireService:
     def __init__(
@@ -21,6 +22,7 @@ class WireService:
         requests: RequestManager,
         subtitles: SubtitleManager,
         media_server: MediaServer,
+        downloads: DownloadClient,
     ) -> None:
         self._radarr = radarr
         self._sonarr = sonarr
@@ -28,6 +30,7 @@ class WireService:
         self._requests = requests
         self._subtitles = subtitles
         self._media_server = media_server
+        self._downloads = downloads
 
     def run(self) -> WireReport:
         report = WireReport()
@@ -41,6 +44,7 @@ class WireService:
 
     def _steps(self) -> list[tuple[str, Callable[[], None]]]:
         return [
+            ("qbittorrent: queue", self._downloads.skip_slow_torrents),
             *_media_steps("radarr", self._radarr),
             *_media_steps("sonarr", self._sonarr),
             ("prowlarr: radarr", lambda: self._indexers.sync("radarr")),

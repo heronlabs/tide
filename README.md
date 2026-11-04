@@ -7,7 +7,7 @@
 
 > **Docker Compose stack** for a self-hosted media server, on one Ubuntu host on the LAN: Seerr takes the requests, Radarr and Sonarr get the movies and shows through Prowlarr and qBittorrent, Bazarr gets their subtitles, and Jellyfin plays them.
 
-`tide wire`, in the `tide` folder, wires the services together through their APIs: Radarr, Sonarr, Prowlarr, Seerr and Bazarr to each other, to qBittorrent and to Jellyfin, and Jellyfin's library `Discover` to Seerr, from the values in `tide/.env`. It is Python with the standard library only. [tide/README.md](tide/README.md) covers what it does and its layout.
+`tide wire`, in the `tide` folder, wires the services together through their APIs: qBittorrent's queue, Radarr, Sonarr, Prowlarr, Seerr and Bazarr to each other, to qBittorrent and to Jellyfin, and Jellyfin's library `Discover` to Seerr, from the values in `tide/.env`. It is Python with the standard library only. [tide/README.md](tide/README.md) covers what it does and its layout.
 
 ## Contents
 
@@ -63,7 +63,7 @@ Each `.env.example` lists the variables of its service; edit the copy when the h
 
 ## Setup
 
-Set the services up, in this order, as the `README.md` of each describes. `make wire` does steps 3 to 7 through the APIs, except the indexers, the FlareSolverr proxy, the Library Import, and installing JellyBridge and picking what it shows, from the values in `tide/.env` (`cp tide/.env.example tide/.env`, mode `600`; [tide/README.md](tide/README.md) covers it):
+Set the services up, in this order, as the `README.md` of each describes. `make wire` does steps 3 to 7 and qBittorrent's queue through the APIs, except the indexers, the FlareSolverr proxy, the Library Import, and installing JellyBridge and picking what it shows, from the values in `tide/.env` (`cp tide/.env.example tide/.env`, mode `600`; [tide/README.md](tide/README.md) covers it):
 
 1. Jellyfin: the setup wizard and the libraries, and an API key (Dashboard → API Keys) for Radarr, Sonarr and tide. JellyBridge and the library `Discover` come last, since they need Seerr's API key.
 2. qBittorrent: the admin password and the save paths and seeding limit Radarr and Sonarr need.
